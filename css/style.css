@@ -97,8 +97,8 @@ ul {
 .editBox {
 	background-color: white;
 	border: 2px solid #E8F3FF;
-	padding: 10px 15px;
-	height: 35px;
+	padding: 4px 4px;
+	height: 150px;
 }
 
 .clear {

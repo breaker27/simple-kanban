@@ -96,41 +96,64 @@
 		return story_element;
 	};
 
-	var create_list = function(board, state) {
+	var create_list = function(board, state, swimlane) {
 		var list = $("<ul></ul>");
 		if (board[state]) {
 			for (var i=0, len=board[state].length; i<len; i++) {
 				var id = board[state][i].id;
-				var story_element = create_story_li_item(app_data.rawData[id]);
-				list.append(story_element);
+				
+				if ((app_data.rawData[id].swimlane === swimlane) || ((app_data.rawData[id].swimlane === undefined) && (swimlane === "UNDEF")))
+				{
+					var story_element = create_story_li_item(app_data.rawData[id]);
+					list.append(story_element);
+				}
 			}
 		}
 		return "<ul class='state' id='" + state + "'>"+list.html()+"</ul>";
 	};
 
-	var create_column = function(board, state, headlines, num) {
+	var create_column = function(board, state, headlines, num, swimlane) {
 		var content = '<div class="col state_box state_'+state+' col_'+num+'"><h4>'+headlines + '</h4>';
-		content += create_list(board, state);
+		content += create_list(board, state, swimlane);
 		content += '</div>';
 		return content;
 	};
 
 	var create_board = function(app_data) {
+		
+		var content = "";
+		
 		for (var j=0; j< app_data.states_order.length; j++) {
 			var state = app_data.states_order[j];
-			var col = create_column(app_data.board, state, app_data.states[state],j);
-			$('#board').append(col);
+			var col = create_column(app_data.board, state, app_data.states[state],j, "UNDEF");
+			content += col;
 		}
+
+		$('#board').append("<div swimlane=\"UNDEF\">" + content + "</div>");
+
+		content = "";
+		
+		for (var j=0; j< app_data.states_order.length; j++) {
+			var state = app_data.states_order[j];
+			var col = create_column(app_data.board, state, app_data.states[state],j, "2");
+			content += col;
+		}
+
+		$('#board').append("<div swimlane=\"2\">" + content + "</div>");
 		
 		$('ul.state').dragsort({dragSelector:'li',dragBetween: true, placeHolderTemplate: "<li class='placeholder'><div>&nbsp</div></li>",dragEnd:droppedElement});
 	};
 
-	var createNewStory = function(id, text, state, color) {
+	var createNewStory = function(id, text, state, color, swimlane) {
 		if (state === undefined) {
 			state = app_data.states_order[0];
 		}
 		if (color === undefined) {
 			color = 0;
+		}
+		
+		if (swimlane === undefined) {
+			swimlane = "";
 		}
 
 		var arText = text.split(',');
@@ -142,7 +165,8 @@
 			id:id,
 			responsible:arText[1].replace(/^\s+/,''),
 			state:state,
-			color:color
+			color:color,
+			swimlane:swimlane
 		};
 		return story;
 	};
@@ -153,12 +177,22 @@
 	var droppedElement = function() {
 		var newState = $(this).parent().attr('id');
 		var storyId = $(this).attr('data-id');
+		
+		var newSwimlane = $(this).parent().parent().parent().parent().parent().attr('swimlane');
+		
 		app_data.rawData[storyId].state = newState;
+		app_data.rawData[storyId].swimlane = newSwimlane;
 		saveData(app_data.rawData);
 	};
 	
+	function htmlEntities(str) {
+		return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+	}
 
-
+	function htmlEntityDecode(str) {
+		return String(str).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+	}
+	
 	$(document).ready(function(){
 		loadData();
 
@@ -183,9 +217,9 @@
 				var value = $(this).html();
 				var storyId = $(this).parent().parent().attr('data-id');
 				var oldColor = app_data.rawData[storyId].color;
-				var form = '<form><input type="text" class="editBox" value="'+value+'" data-old-value="'+value+'" data-old-color="'+oldColor+'"/><br/><a class="save" href="#">save</a> <a class="cancel" href="#">cancel</a> <a href="#" class="delete">delete</a> <a href="#" class="color">color</a></form>';
+				var form = '<form><textarea class="editBox" data-old-value="' + htmlEntities(value) + '" data-old-color="'+oldColor+'">'+value+'</textarea><br/><a class="save" href="#">save</a> <a class="cancel" href="#">cancel</a> <a href="#" class="delete">delete</a> <a href="#" class="color">color</a></form>';
 				$(this).html(form);
-				$(this).find('input').focus();
+				$(this).find('textarea').focus();
 				IN_EDIT_MODE = true;
 				setTimeout(function(){
 					$('html:not(.editable)').bind('click', function(){
@@ -196,7 +230,7 @@
 		});
 
 		$('#navigation').on('change', '.people-list li', function(){
-			var responsible = $(this).find('input').attr('name');
+			var responsible = $(this).find('textarea').attr('name');
 			for (var k in app_data.people[responsible]) {
 				if ($('#board li[data-id="'+app_data.people[responsible][k]+'"]').hasClass('highlight')) {
 					$('#board li[data-id="'+app_data.people[responsible][k]+'"]').removeClass('highlight');
@@ -208,10 +242,10 @@
 		});
 
 		$(document).keyup(function(e) {
-			if (e.keyCode === 27) { 
+			if (e.keyCode === 27) { // ESC
 				$('.cancel').trigger('click');
 			}
-			else if (e.keyCode === 78) {
+			else if (e.keyCode === 78) { // "n" key
 				if (!IN_EDIT_MODE) {
 					$('#new').trigger('click');
 				}
@@ -225,13 +259,13 @@
 			for (var i=0;i<possible_colors;i++) {
 				remove_colors += "color_"+i+" ";
 			}
-			var oldColor = $(this).parent().find('input').attr('data-old-color');
+			var oldColor = $(this).parent().find('textarea').attr('data-old-color');
 			app_data.rawData[storyId].color = oldColor;
 			$(this).parent().parent().parent().removeClass(remove_colors);
 			$(this).parent().parent().parent().addClass('color_'+oldColor);
 
-			var oldContent = $(this).parent().find('input').attr('data-old-value');
-			$(this).parent().parent().html(oldContent);
+			var oldContent = $(this).parent().find('textarea').attr('data-old-value');
+			$(this).parent().parent().html(htmlEntityDecode(oldContent));
 
 			$('html').unbind('click');
 			setTimeout(function(){IN_EDIT_MODE = false;}, 200); // need to release a bit later, else we are right back into edit mode again
@@ -265,10 +299,11 @@
 		});
 
 		$('#board').on('submit', 'form', function(){
-			var title = $(this).find('input').val();
+			var title = $(this).find('textarea').val();
 			var storyId = $(this).parent().attr('data-id');
 			var state = $(this).parent().parent().parent().attr('data-state');
-			var story = createNewStory(storyId, title, state, app_data.rawData[storyId].color);
+			var swimlane = $(this).parent().parent().parent().parent().parent().parent().attr('swimlane');
+			var story = createNewStory(storyId, title, state, app_data.rawData[storyId].color, swimlane);
 
 			app_data.rawData[storyId] = story;
 			saveData(app_data.rawData);

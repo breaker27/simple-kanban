@@ -1,11 +1,9 @@
 var possibleStates = [
-	'P,Pipeline',
-	'R,Request Evaluation',
-	'Rm,Requirements',
-	'C,Concept',
-	'D,Development',
-	'Dy,Deployment',
-	'L,Live'
+	'B,Backlog',
+	'S,Selected',
+	'D,Under Development',
+	'RC,Release Candidate',
+	'FIN,Done'
 ];
 
 var possible_colors = 4;
