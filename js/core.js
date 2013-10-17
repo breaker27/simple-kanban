@@ -1,3 +1,23 @@
+/*
+* This file is part of Simple Kanban.
+* Copyright (c) 2009 Stephan Schmidt
+* Copyright (c) 2013 Raphael Schär
+* Copyright (c) 2013 Uwe Freese
+*
+* Simple Kanban is free software: you can redistribute it and/or modify it
+* under the terms of the GNU General Public License as published by the
+* Free Software Foundation, either version 3 of the License, or (at your
+* option) any later version.
+*
+* Simple Kanban is distributed in the hope that it will be useful, but
+* WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+* Public License for more details.
+*
+* You should have received a copy of the GNU General Public License along
+* with Simple Kanban. If not, see <http://www.gnu.org/licenses/>.
+*/
+
 (function(){
 	"use strict";
 
@@ -10,6 +30,7 @@
 
 	var loadData = function() {
 		var state_data = init_states(possibleStates);
+		var swimlane_data = init_swimlanes(possibleStates);
 		$.ajax({
 			type: 'POST',
 			url: 'server.php',
@@ -67,6 +88,19 @@
 			}
 		}
 		return {states: states, states_order: states_order};
+	};
+	
+	var init_swimlanes = function(swimlanes_input) {
+		var swimlanes = {};
+		var swimlanes_order = [];
+		for (var i = 0, len = swimlanes_input.length; i < len; i++) {
+			var swimlane = swimlanes_input[i].split(",");
+			if (swimlane.length === 2) {
+				swimlanes[swimlane[0]] = swimlane[1];
+				swimlanes_order.push(swimlanes[0]);
+			}
+		}
+		return {swimlanes: swimlanes, swimlanes_order: swimlanes_order};
 	};
 
 	var init_board = function(stories) {
