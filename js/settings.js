@@ -27,6 +27,10 @@ var possibleStates = [
 
 var possible_colors = 4;
 
+// Additional column on the left side for new items not assigned to a swimlane.
+// Disable feature by setting empty string ("").
+var sideCol = "New w/o version";
+
 var swimlanes = [
 	'v0.2.0,Next release',
 	'v0.3.0,Another release'

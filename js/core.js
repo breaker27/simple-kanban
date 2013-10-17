@@ -146,35 +146,49 @@
 		return "<ul class='state' id='" + state + "'>"+list.html()+"</ul>";
 	};
 
-	var create_column = function(board, state, headlines, num, swimlane) {
-		var content = '<td class="state_' + state + ' col_' + num + '">';
-		content += create_list(board, state, swimlane);
-		content += '</td>';
-		return content;
-	};
-	
-	var create_headline = function(headlines) {
-		return '<th WIDTH="20%">' + headlines + '</th>';
-	};
-
-	var create_board = function(app_data) {
-		
+	var create_headline = function() {
 		var content = "";
+		
+		if (sideCol != "")
+		{
+			content += '<th WIDTH="20%">' + sideCol + '</th>';
+		}
 		
 		for (var j = 0; j < app_data.states_order.length; j++) {
 			var state = app_data.states_order[j];
-			var col = create_headline(app_data.states[state]);
-			content += col;
+			content += '<th WIDTH="20%">' + app_data.states[state] + '</th>'
 		}
 		
-		$('#board').append("<tr>" + content + "</tr>");
+		return content;
+	};
+
+	var create_column = function(board, state, headlines, swimlane, num) {
+		var rowspan = "";
+		
+		if ((swimlane == 0) && (num == 0) && (sideCol != ""))
+		{
+			rowspan = ' rowspan="' + app_data.swimlanes_order.length + '"';
+		}
+		else
+		{
+			rowspan = '';
+		}
+	
+		var content = '<td class="state_' + state + ' col_' + num + '"' + rowspan + '>';
+		content += create_list(board, state, "UNDEF");
+		content += '</td>';
+		return content;
+	};
+
+	var create_board = function(app_data) {
+		$('#board').append("<tr>" + create_headline() + "</tr>");
 		
 		for (var s = 0; s < app_data.swimlanes_order.length; s++) {
-			content = "";
+			var content = "";
 		
 			for (var j = 0; j < app_data.states_order.length; j++) {
 				var state = app_data.states_order[j];
-				var col = create_column(app_data.board, state, app_data.states[state],j, "UNDEF");
+				var col = create_column(app_data.board, state, app_data.states[state], s, j);
 				content += col;
 			}
 
