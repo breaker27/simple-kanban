@@ -21,13 +21,13 @@
 var possibleStates = [
 	'A,Assigned',
 	'W,In Work',
-	'R,Release',
-	'D,Done'
+	'C,Completed',
+	'R,Released'
 ];
 
 var possible_colors = 4;
 
 var swimlanes = [
-	'v0.2.0',
-	'v0.3.0'
+	'v0.2.0,Next release',
+	'v0.3.0,Another release'
 ];

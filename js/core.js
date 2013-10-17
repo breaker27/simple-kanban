@@ -30,7 +30,7 @@
 
 	var loadData = function() {
 		var state_data = init_states(possibleStates);
-		var swimlane_data = init_swimlanes(possibleStates);
+		var swimlane_data = init_swimlanes(swimlanes);
 		$.ajax({
 			type: 'POST',
 			url: 'server.php',
@@ -43,7 +43,7 @@
 				app_data.board = init_board(data);
 				app_data.states = state_data.states;
 				app_data.states_order = state_data.states_order;
-				
+				app_data.swimlanes_order = swimlane_data.swimlanes_order;				
 
 				app_data.rawData = data;
 
@@ -147,33 +147,39 @@
 	};
 
 	var create_column = function(board, state, headlines, num, swimlane) {
-		var content = '<div class="col state_box state_'+state+' col_'+num+'"><h4>'+headlines + '</h4>';
+		var content = '<td class="state_' + state + ' col_' + num + '">';
 		content += create_list(board, state, swimlane);
-		content += '</div>';
+		content += '</td>';
 		return content;
+	};
+	
+	var create_headline = function(headlines) {
+		return '<th WIDTH="20%">' + headlines + '</th>';
 	};
 
 	var create_board = function(app_data) {
 		
 		var content = "";
 		
-		for (var j=0; j< app_data.states_order.length; j++) {
+		for (var j = 0; j < app_data.states_order.length; j++) {
 			var state = app_data.states_order[j];
-			var col = create_column(app_data.board, state, app_data.states[state],j, "UNDEF");
+			var col = create_headline(app_data.states[state]);
 			content += col;
 		}
-
-		$('#board').append("<div swimlane=\"UNDEF\">" + content + "</div>");
-
-		content = "";
 		
-		for (var j=0; j< app_data.states_order.length; j++) {
-			var state = app_data.states_order[j];
-			var col = create_column(app_data.board, state, app_data.states[state],j, "2");
-			content += col;
-		}
+		$('#board').append("<tr>" + content + "</tr>");
+		
+		for (var s = 0; s < app_data.swimlanes_order.length; s++) {
+			content = "";
+		
+			for (var j = 0; j < app_data.states_order.length; j++) {
+				var state = app_data.states_order[j];
+				var col = create_column(app_data.board, state, app_data.states[state],j, "UNDEF");
+				content += col;
+			}
 
-		$('#board').append("<div swimlane=\"2\">" + content + "</div>");
+			$('#board').append("<tr swimlane=\"UNDEF\">" + content + "</tr>");
+		}
 		
 		$('ul.state').dragsort({dragSelector:'li',dragBetween: true, placeHolderTemplate: "<li class='placeholder'><div>&nbsp</div></li>",dragEnd:droppedElement});
 	};
