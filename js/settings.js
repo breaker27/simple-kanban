@@ -19,17 +19,16 @@
 */
 
 var possibleStates = [
-	'A,Assigned',
-	'W,In Work',
-	'C,Completed',
-	'R,Released'
+	'Unplanned',
+	'Not Started',
+	'In Progress',
+	'In Testing',
+	'Done'
 ];
 
 var possible_colors = 4;
 
-// Additional column on the left side for new items not assigned to a swimlane.
-// Disable feature by setting empty string ("").
-var sideCol = "New w/o version";
+var body_length_max = 100;
 
 var swimlanes = [
 	'v0.2.0,Next release',

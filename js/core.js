@@ -22,6 +22,8 @@
 	"use strict";
 
 	var app_data = {
+		milestones:{},
+		states:{},
 		people:{}
 	};
 	
@@ -29,31 +31,51 @@
 	var IN_EDIT_MODE = false;
 
 	var loadData = function() {
-		var state_data = init_states(possibleStates);
 		var swimlane_data = init_swimlanes(swimlanes);
+
 		$.ajax({
-			type: 'POST',
-			url: 'server.php',
+			type: 'GET',
+			url: 'https://api.github.com/repos/breaker27/smarthomatic/issues',
 			data: {action:'load'},
 			dataType: 'json',
 			success: function(data) {
 				if (data === null) {
 					data = {};
 				}
+				
 				app_data.board = init_board(data);
-				app_data.states = state_data.states;
-				app_data.states_order = state_data.states_order;
+				app_data.states = possibleStates;
 				app_data.swimlanes_order = swimlane_data.swimlanes_order;				
 
 				app_data.rawData = data;
 
 				create_board(app_data);
-				createPeopleList();
+				alert('ok3');
+//				createPeopleList();
 			}
 		});
+
 		//return rawData;
 	};
+/*
+	var GitHub_setMilestone = function(issueNr, milestone)
+	{
+		var github = new Github({
+			username: "breaker27",
+			password: "xxx"
+		});
+		
+		var issues = github.getIssues("breaker27", "smarthomatic");
+		
+		var updatedIssue = {
+			"milestone": 3
+		};
 
+		issues.update(issueNr, updatedIssue, function(err, issues2) {
+			alert(err);
+		});
+	}
+	*/
 	var createPeopleList = function() {
 		var peopleList = '<form ><ul class="people-list">';
 		for (var i in app_data.people) {
@@ -62,7 +84,7 @@
 			}
 		}
 		peopleList += '</ul></form>';
-		$('#navigation').append(peopleList);
+		//$('#navigation').append(peopleList);
 	};
 
 	var saveData = function(data) {
@@ -75,19 +97,6 @@
 			data: {action:'save',data:data},
 			dataType:'json'
 		});
-	};
-
-	var init_states = function(states_input) {
-		var states = {};
-		var states_order = [];
-		for ( var i=0, len=states_input.length; i<len; i++ ) {
-			var state = states_input[i].split(",");
-			if (state.length === 2) {
-				states[state[0]] = state[1];
-				states_order.push(state[0]);
-			}
-		}
-		return {states: states, states_order: states_order};
 	};
 	
 	var init_swimlanes = function(swimlanes_input) {
@@ -103,69 +112,147 @@
 		return {swimlanes: swimlanes, swimlanes_order: swimlanes_order};
 	};
 
-	var init_board = function(stories) {
+	var init_board = function(issues) {
 		var board = {};
-		for (var i in stories) {
-			if (stories.hasOwnProperty(i)) {
-				var story = stories[i];
-				story.id = i;
-				if (! board[story.state]) {
-					board[story.state] = [];
+		for (var i in issues) {
+				var issue = issues[i];
+				var myState = "";
+				
+				// remember milestones
+				var milestone = "";
+				var milestoneOpen = true;
+				
+				if (issue.milestone != null)
+				{
+					milestone = issue.milestone.number;
+					var milestoneTitle = issue.milestone.title;
+					
+					if (app_data.milestones[milestone] === undefined) {
+						app_data.milestones[milestone] = milestoneTitle;
+					}
+					
+					milestoneOpen = issue.milestone.state = "open";
 				}
-				board[story.state].push(story);
-			}
+				
+				// remember labels
+				var labels = "";
+				var inProgress = false;
+				
+				if (issue.labels != null)
+				{
+					for (var l in issue.labels) {
+						// TODO: remember also every label
+						if (issue.labels[l].name == "In Progress")
+						{
+							inProgress = true;
+						}
+					}
+				}
+				
+				// calculate myState depending on original state, milestone state and labels
+				if (milestone == "")
+				{
+					myState = "Unplanned";
+				}
+				else if (issue.state == "closed") // -> "In Testing" or "Done"
+				{
+					if (milestoneOpen)
+					{
+						myState = "In Testing";
+					}
+					else
+					{
+						myState = "Done";
+					}
+				}
+				else // "Not Started" or "In Progress", depending on "In Processing" label
+				{
+					if (inProgress)
+					{
+						myState = "In Progress";
+					}
+					else
+					{
+						myState = "Not Started";
+					}
+				}
+				
+				issue.id = i; // array index in list of items
+				issue.myState = myState; // array index in list of items
+				
+				var cellKey = milestone + "|" + myState;
+				
+				if (!board[cellKey]) {
+					board[cellKey] = [];
+				}
+				
+				board[cellKey].push(issue);
 		}
 		return board;
 	};
-
-	var create_story_li_item = function(story) {
-		var story_element = $("<li data-state='"+story.state+"' data-id='"+story.id+"'><div class='box color_"+story.color+"' ><div class='editable' data-id='"+story.id+"'>" + story.title + ", " + story.responsible + "</div></div></li>");
+	
+	var create_story_li_item2 = function(issue) {
+		var assignee = "";
 		
-		if (app_data.people[story.responsible] === undefined) {
-			app_data.people[story.responsible] = [story.id];
+		if (issue.assignee != null)
+		{
+			assignee = '<div class="issue_assignee">' + issue.assignee.login + "</div>";
+		}
+		
+		if (app_data.people[assignee] === undefined) {
+			app_data.people[assignee] = [issue.id];
 		}
 		else {
-			app_data.people[story.responsible].push(story.id);
+			app_data.people[assignee].push(issue.id);
 		}
-		return story_element;
+		
+		var body = issue.body;
+		
+		if (body.length > body_length_max)
+		{
+			body = body.substring(0, body_length_max - 3) + '...';
+		}
+		
+		var issue_element = $("<li><div class='box'><div class='editable issue_title'>" + issue.title + "</div><div class='editable issue_body'>" + body + "</div>" + assignee + "</div></li>");
+		
+		return issue_element;
 	};
 
-	var create_list = function(board, state, swimlane) {
+	var create_list = function(board, milestone, state) {
 		var list = $("<ul></ul>");
-		if (board[state]) {
-			for (var i=0, len=board[state].length; i<len; i++) {
-				var id = board[state][i].id;
+		var cellKey = milestone + "|" + state;
+	
+		if (board[cellKey]) {
+		
+		
+			for (var i = 0, len = board[cellKey].length; i < len; i++) {
+				var id = board[cellKey][i].id;
 				
-				if ((app_data.rawData[id].swimlane === swimlane) || ((app_data.rawData[id].swimlane === undefined) && (swimlane === "UNDEF")))
-				{
-					var story_element = create_story_li_item(app_data.rawData[id]);
+				//if (app_data.rawData[id].milestone == 3)
+				//{
+			
+					var story_element = create_story_li_item2(app_data.rawData[id]);
 					list.append(story_element);
-				}
+				//}
 			}
 		}
-		return "<ul class='state' id='" + state + "'>"+list.html()+"</ul>";
+		return "<ul class='state' id='" + id + "'>" + list.html() + "</ul>";
 	};
 
 	var create_headline = function() {
 		var content = "";
-		
-		if (sideCol != "")
-		{
-			content += '<th WIDTH="20%">' + sideCol + '</th>';
-		}
-		
-		for (var j = 0; j < app_data.states_order.length; j++) {
-			var state = app_data.states_order[j];
-			content += '<th WIDTH="20%">' + app_data.states[state] + '</th>'
+				
+		for (var j = 0; j < app_data.states.length; j++) {
+			content += '<th WIDTH="20%">' + app_data.states[j] + '</th>'
 		}
 		
 		return content;
 	};
 
-	var create_column = function(board, state, headlines, swimlane, num) {
+	var create_column = function(board, state, milestoneNr, colNum) {
 		var rowspan = "";
 		
-		if ((swimlane == 0) && (num == 0) && (sideCol != ""))
+		if ((milestoneNr == 0) && (colNum == 0))
 		{
 			rowspan = ' rowspan="' + app_data.swimlanes_order.length + '"';
 		}
@@ -174,8 +261,10 @@
 			rowspan = '';
 		}
 	
-		var content = '<td class="state_' + state + ' col_' + num + '"' + rowspan + '>';
-		content += create_list(board, state, "UNDEF");
+		var stateClass = state.replace(/\s/g,'');
+	
+		var content = '<td class="state_' + stateClass + ' col_' + colNum + '"' + rowspan + '>';
+		content += create_list(board, milestoneNr, state);
 		content += '</td>';
 		return content;
 	};
@@ -183,16 +272,23 @@
 	var create_board = function(app_data) {
 		$('#board').append("<tr>" + create_headline() + "</tr>");
 		
-		for (var s = 0; s < app_data.swimlanes_order.length; s++) {
-			var content = "";
+		var content = "";
 		
-			for (var j = 0; j < app_data.states_order.length; j++) {
-				var state = app_data.states_order[j];
-				var col = create_column(app_data.board, state, app_data.states[state], s, j);
+		// add "Unplanned" cell in 1st row
+		var state = app_data.states[0];
+		var col = create_column(app_data.board, state, "", 0);
+		content += col;
+			
+		for (var m in app_data.milestones) {
+			for (var j = 1; j < app_data.states.length; j++) {
+				var state = app_data.states[j];
+				var col = create_column(app_data.board, state, m, j);
 				content += col;
 			}
 
 			$('#board').append("<tr swimlane=\"UNDEF\">" + content + "</tr>");
+			
+			content = "";
 		}
 		
 		$('ul.state').dragsort({dragSelector:'li',dragBetween: true, placeHolderTemplate: "<li class='placeholder'><div>&nbsp</div></li>",dragEnd:droppedElement});

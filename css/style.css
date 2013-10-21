@@ -17,6 +17,11 @@ h4 {
 	display: table-cell;
 }
 
+td, th {
+	border: 1px solid black;
+}
+
+
 .state_box {
 	width:12.5%;
 	margin-right: 5px;
@@ -60,11 +65,26 @@ ul {
 	border: 1px solid black;
 	margin:5px;
 	background-color: #fff;
-	min-height: 32px;
+	min-height: 20px;
 	border-radius: 5px;
 	/*-moz-box-shadow:    3px 3px 5px 6px #00050A;
 	-webkit-box-shadow: 0px 1px 1px 1px #00050A;
 	box-shadow: 0px 1px 1px 1px #00050A;*/
+}
+
+.issue_title {
+	font-size: 100%;
+	font-weight: 700;
+}
+
+.issue_body {
+	font-size: 80%;
+}
+
+.issue_assignee {
+	font-size: 80%;
+	font-style:italic;
+	text-align:right;
 }
 
 .color_0 {
