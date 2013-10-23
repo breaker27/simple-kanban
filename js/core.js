@@ -23,8 +23,11 @@
 
 	var app_data = {
 		milestones:{},
+		milestoneDescription:{},
 		states:{},
-		people:{}
+		people:{},
+		labels:{},
+		milestoneCount:0
 	};
 	
 	// flips back end forth to disable other event listener when already editing
@@ -50,7 +53,6 @@
 				app_data.rawData = data;
 
 				create_board(app_data);
-				alert('ok3');
 //				createPeopleList();
 			}
 		});
@@ -91,6 +93,7 @@
 		if (data === '') {
 			data = {};
 		}
+		
 		$.ajax({
 			type: 'POST',
 			url: 'server.php',
@@ -125,10 +128,11 @@
 				if (issue.milestone != null)
 				{
 					milestone = issue.milestone.number;
-					var milestoneTitle = issue.milestone.title;
-					
+
 					if (app_data.milestones[milestone] === undefined) {
-						app_data.milestones[milestone] = milestoneTitle;
+						app_data.milestones[milestone] = issue.milestone.title;
+						app_data.milestoneDescription[milestone] = issue.milestone.description;
+						app_data.milestoneCount++;
 					}
 					
 					milestoneOpen = issue.milestone.state = "open";
@@ -141,7 +145,19 @@
 				if (issue.labels != null)
 				{
 					for (var l in issue.labels) {
-						// TODO: remember also every label
+						// remember all labels
+						if (app_data.labels[issue.labels[l].name] === undefined) {
+							app_data.labels[issue.labels[l].name] = '#' + issue.labels[l].color;
+						}
+					
+						// TODO: remember every label for the issue
+						
+						// remember color code for issue
+						if ($.inArray(issue.labels[l].name, color_labels) != -1)
+						{
+							issue.color = '#' + issue.labels[l].color;
+						}
+						
 						if (issue.labels[l].name == "In Progress")
 						{
 							inProgress = true;
@@ -158,7 +174,7 @@
 				{
 					if (milestoneOpen)
 					{
-						myState = "In Testing";
+						myState = "Testing";
 					}
 					else
 					{
@@ -169,7 +185,7 @@
 				{
 					if (inProgress)
 					{
-						myState = "In Progress";
+						myState = "Implementation";
 					}
 					else
 					{
@@ -188,6 +204,9 @@
 				
 				board[cellKey].push(issue);
 		}
+		
+		
+		
 		return board;
 	};
 	
@@ -213,11 +232,35 @@
 			body = body.substring(0, body_length_max - 3) + '...';
 		}
 		
-		var issue_element = $("<li><div class='box'><div class='editable issue_title'>" + issue.title + "</div><div class='editable issue_body'>" + body + "</div>" + assignee + "</div></li>");
+		var bgcolor;
+		if (issue.color === undefined)
+		{
+			bgcolor = '';
+		}
+		else
+		{
+			bgcolor = ' style="background-color: ' + issue.color + '"';
+		}
+		
+		var issue_element = $('<li data-id="' + issue.id + '"><div class="box"' + bgcolor + '><div class="editable issue_title" data-id="' + issue.id + '">' + issue.title + '</div><div class="editable issue_body" data-id="' + issue.id + '">' + body + '</div>' + assignee + '</div></li>');
 		
 		return issue_element;
 	};
 
+	/*
+	var create_story_li_item = function(story) {
+		var story_element = $("<li data-state='"+story.state+"' data-id='"+story.id+"'><div class='box color_"+story.color+"' ><div class='editable' data-id='"+story.id+"'>" + story.title + ", " + story.responsible + "</div></div></li>");
+		
+		if (app_data.people[story.responsible] === undefined) {
+			app_data.people[story.responsible] = [story.id];
+		}
+		else {
+			app_data.people[story.responsible].push(story.id);
+		}
+		return story_element;
+	};
+	*/
+	
 	var create_list = function(board, milestone, state) {
 		var list = $("<ul></ul>");
 		var cellKey = milestone + "|" + state;
@@ -243,7 +286,13 @@
 		var content = "";
 				
 		for (var j = 0; j < app_data.states.length; j++) {
-			content += '<th WIDTH="20%">' + app_data.states[j] + '</th>'
+			content += '<th WIDTH="18%">' + app_data.states[j] + '</th>';
+			
+			if (j == 0)
+			{
+				content += '<th WIDTH="2%" class="spacer"></th>';
+				content += '<th WIDTH="8%">Story</th>';
+			}
 		}
 		
 		return content;
@@ -254,7 +303,7 @@
 		
 		if ((milestoneNr == 0) && (colNum == 0))
 		{
-			rowspan = ' rowspan="' + app_data.swimlanes_order.length + '"';
+			rowspan = ' rowspan="' + app_data.milestoneCount + '"';
 		}
 		else
 		{
@@ -269,6 +318,17 @@
 		return content;
 	};
 
+	var create_label_list = function()
+	{
+		var content = "<b>Labels:</b> ";
+		
+		for (var l in app_data.labels) {
+			content += '<font style="background-color: ' + app_data.labels[l] + '">' + l + '</font> ';
+		}
+		
+		return content;
+	}
+	
 	var create_board = function(app_data) {
 		$('#board').append("<tr>" + create_headline() + "</tr>");
 		
@@ -279,7 +339,11 @@
 		var col = create_column(app_data.board, state, "", 0);
 		content += col;
 			
+		// one row per milestone
 		for (var m in app_data.milestones) {
+			// description column
+			content += '<td class="spacer"></td><td><b>' + app_data.milestones[m] + '</b><br/>' + app_data.milestoneDescription[m] + '</td>';
+			
 			for (var j = 1; j < app_data.states.length; j++) {
 				var state = app_data.states[j];
 				var col = create_column(app_data.board, state, m, j);
@@ -292,33 +356,8 @@
 		}
 		
 		$('ul.state').dragsort({dragSelector:'li',dragBetween: true, placeHolderTemplate: "<li class='placeholder'><div>&nbsp</div></li>",dragEnd:droppedElement});
-	};
-
-	var createNewStory = function(id, text, state, color, swimlane) {
-		if (state === undefined) {
-			state = app_data.states_order[0];
-		}
-		if (color === undefined) {
-			color = 0;
-		}
 		
-		if (swimlane === undefined) {
-			swimlane = "";
-		}
-
-		var arText = text.split(',');
-		if (arText.length === 1) {
-			arText[1] = 'tbd';
-		}
-		var story = {
-			title:arText[0],
-			id:id,
-			responsible:arText[1].replace(/^\s+/,''),
-			state:state,
-			color:color,
-			swimlane:swimlane
-		};
-		return story;
+		$('#labels').append(create_label_list());
 	};
 
 	/**
@@ -348,20 +387,6 @@
 
 		// ================= Handlers ======================
 		
-		$('#new').click(function(){
-			var id = new Date().getTime();
-			var story = createNewStory(id, "New project");
-			if (app_data.rawData === undefined) {
-				app_data.rawData = {};
-			}
-			app_data.rawData[id] = story;
-			saveData(app_data.rawData);
-			var storyHtml = create_story_li_item(story);
-			$('#'+story.state).append(storyHtml);
-			$(storyHtml).find('.editable').trigger('click');
-			return false;
-		});
-
 		$('#board').on('click','.editable', function(){
 			if (!IN_EDIT_MODE) {
 				var value = $(this).html();
@@ -420,47 +445,6 @@
 			$('html').unbind('click');
 			setTimeout(function(){IN_EDIT_MODE = false;}, 200); // need to release a bit later, else we are right back into edit mode again
       		return false;
-		});
-
-		$('#board').on('click','.delete', function(){
-			var id = $(this).parent().parent().attr('data-id');
-			$(this).parent().parent().parent().parent().remove();
-			$('html').unbind('click');
-			delete app_data.rawData[id];
-			saveData(app_data.rawData);
-			setTimeout(function(){IN_EDIT_MODE = false;}, 200); // need to release a bit later, else we are right back into edit mode again
-      return false;
-		});
-
-		$('#board').on('click', '.color', function() {
-			var storyId = $(this).parent().parent().attr('data-id');
-			if (app_data.rawData[storyId].color === undefined) {
-				app_data.rawData[storyId].color = 0;				
-			}
-			else {
-				$(this).parent().parent().parent().removeClass('color_'+app_data.rawData[storyId].color);
-				app_data.rawData[storyId].color++;
-				if (app_data.rawData[storyId].color >= possible_colors) {
-					app_data.rawData[storyId].color = 0;
-				}
-			}
-			$(this).parent().parent().parent().addClass('color_'+app_data.rawData[storyId].color);
-      return false;
-		});
-
-		$('#board').on('submit', 'form', function(){
-			var title = $(this).find('textarea').val();
-			var storyId = $(this).parent().attr('data-id');
-			var state = $(this).parent().parent().parent().attr('data-state');
-			var swimlane = $(this).parent().parent().parent().parent().parent().parent().attr('swimlane');
-			var story = createNewStory(storyId, title, state, app_data.rawData[storyId].color, swimlane);
-
-			app_data.rawData[storyId] = story;
-			saveData(app_data.rawData);
-			$('html').unbind('click');
-			$(this).parent().html( story.title + ", "+story.responsible);
-			setTimeout(function(){IN_EDIT_MODE = false;}, 200); // need to release a bit later, else we are right back into edit mode again
-			return false;
 		});
 
 		$('#board').on('click','.save', function(){

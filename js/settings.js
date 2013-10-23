@@ -21,8 +21,8 @@
 var possibleStates = [
 	'Unplanned',
 	'Not Started',
-	'In Progress',
-	'In Testing',
+	'Implementation',
+	'Testing',
 	'Done'
 ];
 
@@ -33,4 +33,10 @@ var body_length_max = 100;
 var swimlanes = [
 	'v0.2.0,Next release',
 	'v0.3.0,Another release'
+];
+
+var color_labels = [
+	'Environment',
+	'Firmware',
+	'E2P Editor'
 ];
